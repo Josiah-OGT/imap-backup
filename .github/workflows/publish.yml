@@ -91,6 +91,34 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Build a single-arch image into the runner first and scan it, so a
+      # vulnerable image is never published. OS-package CVEs are identical
+      # across arches, so amd64 is representative of the arm64 build too.
+      # The multi-arch push below reuses these layers from the gha cache.
+      - name: Build image for scanning (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: imap-backup:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan image for vulnerabilities (Trivy)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+              --scanners vuln \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --exit-code 1 \
+              --no-progress \
+              imap-backup:scan
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
