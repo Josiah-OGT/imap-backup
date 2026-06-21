@@ -8,7 +8,12 @@ FROM alpine:3.22
 # ca-certificates -> CA bundle for IMAPS/STARTTLS validation
 # logrotate   -> rotation of the mounted logfile
 # tzdata      -> correct local timestamps in logs (drop to save ~3 MB if unwanted)
-RUN apk add --no-cache \
+# `apk upgrade` first so security patches to packages already baked into the
+# base image (e.g. openssl/libssl3 used by mbsync for IMAPS) are picked up — a
+# plain `apk add` only installs missing deps and leaves pre-installed ones at
+# the base image's (possibly vulnerable) version.
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
         isync \
         ca-certificates \
         logrotate \
