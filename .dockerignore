@@ -1,0 +1,5 @@
+# Keep the build context tiny and never leak secrets/backups into the image.
+# Allowlist approach: ignore everything, then re-include only what the build needs.
+*
+!scripts/
+!Containerfile

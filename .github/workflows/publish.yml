@@ -1,0 +1,99 @@
+name: build-and-publish
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+  schedule:
+    # Weekly rebuild (Mon 04:17 UTC) to pull the latest isync + Alpine patches.
+    - cron: "17 4 * * 1"
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write          # push to GHCR via the built-in GITHUB_TOKEN
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Read the isync version Alpine currently ships so we can tag images with it.
+      - name: Detect isync version
+        id: isync
+        run: |
+          ver=$(docker run --rm alpine:3.22 sh -c \
+                'apk add -q isync >/dev/null 2>&1 && mbsync --version 2>&1 | head -n1' \
+                | sed -E 's/^isync[[:space:]]+//')
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "Detected isync $ver"
+
+      # Build the list of target registries. GHCR is always included; Docker Hub
+      # is added only when its credentials + image name are configured, so the
+      # job stays green before you set the Docker Hub secret.
+      - name: Compute target images
+        id: images
+        run: |
+          repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          {
+            echo 'list<<EOF'
+            echo "ghcr.io/${repo_lc}"
+            if [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ] && [ -n "${{ vars.DOCKERHUB_IMAGE }}" ]; then
+              echo "docker.io/${{ vars.DOCKERHUB_IMAGE }}"
+            fi
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.images.outputs.list }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+            type=sha,format=short
+            type=schedule,pattern={{date 'YYYYMMDD'}}
+            type=raw,value=isync-${{ steps.isync.outputs.version }},enable=${{ steps.isync.outputs.version != '' }}
+          labels: |
+            org.opencontainers.image.title=imap-backup
+            org.opencontainers.image.description=Containerized mbsync IMAP backup & restore
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: ${{ secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

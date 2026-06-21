@@ -1,0 +1,16 @@
+# Secrets & local config
+.env
+.env.*
+!.env.example
+
+# Local backup/test data
+/backups/
+/logs/
+**/.mbsync-restore-state/
+
+# Editor / OS cruft
+*.swp
+.DS_Store
+
+# Local Claude Code settings
+.claude/

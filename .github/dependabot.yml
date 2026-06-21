@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used by the publish workflow current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+
+  # Flag Alpine base-image bumps (e.g. 3.22 -> next stable) that a scheduled
+  # rebuild won't pick up on its own. Dependabot reads the FROM in Containerfile.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "build"

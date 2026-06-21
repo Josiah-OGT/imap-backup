@@ -1,0 +1,38 @@
+# Podman Quadlet unit for the long-running imap-backup service.
+#
+# Install (rootless):
+#   mkdir -p ~/.config/containers/systemd
+#   cp quadlet/imap-backup.container ~/.config/containers/systemd/
+#   # adjust the paths below, then:
+#   systemctl --user daemon-reload
+#   systemctl --user start imap-backup.service
+#   loginctl enable-linger "$USER"        # keep it running after logout
+#
+# Logs:  journalctl --user -u imap-backup -f   (also tee'd to the mounted LOG dir)
+
+[Unit]
+Description=IMAP backup (mbsync) long-running service
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=imap-backup
+Image=localhost/imap-backup:latest
+# Built locally; Quadlet won't pull it. Build first: podman build -t imap-backup .
+Pull=never
+
+# Edit these three paths to taste (%h = your home directory).
+EnvironmentFile=%h/.config/imap-backup/.env
+Volume=%h/imap-backup/backups:/backups:Z
+Volume=%h/imap-backup/logs:/logs:Z
+
+# Rootless: map your host UID into the container so backup files are owned by you.
+UserNS=keep-id
+
+[Service]
+# It's a persistent loop; keep it alive across crashes/reboots.
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target
