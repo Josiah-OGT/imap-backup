@@ -1,0 +1,31 @@
+# Docker Compose for the long-running imap-backup service.
+#
+#   1. cp .env.example .env   &&   edit .env   (accounts + credentials)
+#   2. mkdir -p backups logs
+#   3. docker compose up -d
+#
+# One-off commands (the backup service is untouched):
+#   docker compose run --rm imap-backup sync-once       # single backup cycle
+#   docker compose run --rm imap-backup restore         # restore all accounts
+#   docker compose run --rm imap-backup restore 1 3     # restore specific indices
+
+services:
+  imap-backup:
+    image: ghcr.io/josiah-ogt/imap-backup:latest
+    # Pin a release instead of latest for reproducibility, e.g.:
+    #   image: ghcr.io/josiah-ogt/imap-backup:v1.0.0
+    # Or build the image locally instead of pulling — uncomment:
+    # build: .
+    container_name: imap-backup
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      # `:Z` relabels the bind mounts for SELinux (Fedora/RHEL). Harmless to
+      # drop the suffix on non-SELinux hosts (Ubuntu, Docker Desktop).
+      - ./backups:/backups:Z
+      - ./logs:/logs:Z
+    # By default (rootful Docker) the container runs as root, so backup files on
+    # the host are owned by root. To own them as yourself instead, pre-create the
+    # backups/ and logs/ dirs and run as your UID/GID:
+    #   PUID=$(id -u) PGID=$(id -g) docker compose up -d
+    # user: "${PUID:-0}:${PGID:-0}"

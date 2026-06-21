@@ -94,6 +94,53 @@ podman run --rm --userns=keep-id --env-file .env \
   imap-backup sync-once
 ```
 
+## Run with Docker / Docker Compose
+
+Prefer Docker? A [`docker-compose.yml`](docker-compose.yml) is included. After
+configuring `.env` (step 1 above):
+
+```sh
+mkdir -p backups logs
+docker compose up -d
+```
+
+This pulls the published image and runs the same long-running backup service.
+Watch it:
+
+```sh
+docker compose logs -f      # live; also written to ./logs/imap-backup.log
+```
+
+One-off commands — the running backup service is left untouched:
+
+```sh
+docker compose run --rm imap-backup sync-once     # a single backup cycle
+docker compose run --rm imap-backup restore       # restore all accounts
+docker compose run --rm imap-backup restore 1 3   # restore specific indices
+```
+
+Stop / update:
+
+```sh
+docker compose down                 # stop & remove the container
+docker compose pull && docker compose up -d   # update to the latest image
+```
+
+> **File ownership:** under rootful Docker the container runs as root, so backup
+> files land on the host owned by `root`. To own them as yourself, uncomment the
+> `user:` line in `docker-compose.yml` and start with
+> `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. (Podman's `--userns=keep-id`
+> handles this automatically — see below.) The `:Z` volume suffix relabels mounts
+> for SELinux on Fedora/RHEL; drop it on non-SELinux hosts.
+
+Without Compose, the equivalent `docker run`:
+
+```sh
+docker run -d --name imap-backup --env-file .env \
+  -v ./backups:/backups:Z -v ./logs:/logs:Z \
+  ghcr.io/josiah-ogt/imap-backup:latest
+```
+
 ## 4. Run as a service (Quadlet + systemd)
 
 For "always running, survives reboot" on Fedora, use the included Quadlet unit
