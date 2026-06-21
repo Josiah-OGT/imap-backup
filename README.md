@@ -96,8 +96,26 @@ podman run --rm --userns=keep-id --env-file .env \
 
 ## Run with Docker / Docker Compose
 
-Prefer Docker? A [`docker-compose.yml`](docker-compose.yml) is included. After
-configuring `.env` (step 1 above):
+Prefer Docker? The image is published, so you only need two files —
+[`docker-compose.yml`](docker-compose.yml) and [`.env.example`](.env.example).
+
+**Get the files** — download the two files into an empty directory:
+
+```sh
+mkdir imap-backup && cd imap-backup
+base=https://raw.githubusercontent.com/Josiah-OGT/imap-backup/main
+curl -fsSLO "$base/docker-compose.yml"
+curl -fsSL  "$base/.env.example" -o .env.example
+```
+
+**Configure** your accounts + credentials:
+
+```sh
+cp .env.example .env
+$EDITOR .env          # see .env.example for the full field reference
+```
+
+**Start** the long-running backup service:
 
 ```sh
 mkdir -p backups logs
