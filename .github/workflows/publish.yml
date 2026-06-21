@@ -28,7 +28,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Read the isync version Alpine currently ships so we can tag images with it.
       - name: Detect isync version
