@@ -9,9 +9,9 @@ on:
     # NOTE: this filter also applies to tag pushes — always cut release tags on a
     # commit that includes the code change (the normal case), or trigger manually.
     paths-ignore:
-      - "**.md"
-      - "LICENSE"
-      - ".env.example"
+      - "README.md"          # NB: DOCKERHUB.md is NOT ignored — the publish job
+      - "LICENSE"            # syncs it to the Docker Hub description, so changes
+      - ".env.example"       # to it must trigger a run.
       - "docker-compose.yml"
       - "quadlet/**"
   workflow_dispatch:
@@ -140,3 +140,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Sync the Docker Hub repo description from DOCKERHUB.md. Only when Docker
+      # Hub is configured, and only on main (not on tag/PR builds) to avoid
+      # redundant updates. Uses the same Docker Hub token (needs Read & Write).
+      - name: Update Docker Hub description
+        if: env.DOCKERHUB_TOKEN != '' && github.ref == 'refs/heads/main'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKERHUB_IMAGE }}
+          short-description: "Containerized mbsync IMAP backup & restore — multi-arch, CVE-scanned"
+          readme-filepath: ./DOCKERHUB.md
