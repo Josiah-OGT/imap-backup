@@ -29,6 +29,34 @@ Tags: `latest`, `isync-<version>` (e.g. `isync-1.5.1`), `sha-<short>`, and a
 `YYYYMMDD` date tag on the weekly build. Pin `isync-<version>` or a date tag for
 reproducibility; use `latest` to always get the freshest isync.
 
+## Security & vulnerability scanning
+
+Every automated build is **scanned for CVEs before it is published** — a
+vulnerable image never reaches the registries. The
+[`build-and-publish`](.github/workflows/publish.yml) workflow:
+
+1. Builds a single-arch (`amd64`) image into the CI runner.
+2. Scans it with [Trivy](https://github.com/aquasecurity/trivy), failing the run
+   on any **HIGH/CRITICAL** vulnerability that has a fix available
+   (`--ignore-unfixed`, so unpatchable advisories don't block releases).
+3. Only on a clean scan does it build and push the multi-arch image.
+
+OS-package CVEs are architecture-independent, so the `amd64` scan represents the
+`arm64` image too. Several layers keep the published image current:
+
+- **`apk upgrade` at build time** — the `Containerfile` upgrades the base
+  image's pre-installed packages (e.g. OpenSSL), so patches already released by
+  Alpine are pulled in even when no direct dependency requires them.
+- **Weekly rebuild** — a scheduled run rebuilds from the latest Alpine + isync
+  packages, so fixes land without a code change (and are re-scanned by the gate).
+- **Dependabot** keeps the GitHub Actions and base image current.
+
+Scan any tag yourself:
+
+```sh
+podman run --rm aquasec/trivy image ghcr.io/josiah-ogt/imap-backup:latest
+```
+
 ## How it works
 
 ```
