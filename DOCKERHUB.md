@@ -138,9 +138,14 @@ docker compose run --rm imap-backup restore 1      # specific account(s)
 ## Notes
 
 - **File ownership:** under rootful Docker the container runs as root, so backup
-  files are owned by `root`. To own them as yourself, run as your UID/GID:
-  `docker compose run --user "$(id -u):$(id -g)" ...` (pre-create `backups/` and
-  `logs/` first).
+  files are owned by `root`. `PUID`/`PGID` are **not** app settings — to own the
+  files as yourself, add a `user:` line to the service and feed it your host IDs:
+  ```yaml
+      user: "${PUID:-0}:${PGID:-0}"   # add under the imap-backup service
+  ```
+  then set `PUID`/`PGID` (from `id -u` / `id -g`) in `.env`, or inline:
+  `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. Pre-create `backups/` and
+  `logs/` as that user first. (With `docker run`, use `--user "$(id -u):$(id -g)"`.)
 - **SELinux (Fedora/RHEL):** append `:Z` to the volume mounts, e.g.
   `./backups:/backups:Z`.
 - **Stopping:** `docker stop` sends SIGTERM; the container finishes the
