@@ -1,6 +1,7 @@
 # imap-backup
 
 [![build-and-publish](https://github.com/Josiah-OGT/imap-backup/actions/workflows/publish.yml/badge.svg)](https://github.com/Josiah-OGT/imap-backup/actions/workflows/publish.yml)
+[![latest release](https://img.shields.io/github/v/release/Josiah-OGT/imap-backup?label=release)](https://github.com/Josiah-OGT/imap-backup/releases/latest)
 
 Containerized [`mbsync`](https://isync.sourceforge.io/) (isync) that mirrors a
 list of IMAP accounts — defined in a `.env` file — into local **Maildir**
