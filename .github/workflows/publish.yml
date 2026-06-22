@@ -36,6 +36,9 @@ jobs:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+      # The Docker Hub description API rejects PATs (403) — it needs the account
+      # password. Optional: set it to enable description sync; the step skips if unset.
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -141,15 +144,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Sync the Docker Hub repo description from DOCKERHUB.md. Only when Docker
-      # Hub is configured, and only on main (not on tag/PR builds) to avoid
-      # redundant updates. Uses the same Docker Hub token (needs Read & Write).
+      # Sync the Docker Hub repo description from DOCKERHUB.md. Requires the
+      # DOCKERHUB_PASSWORD secret (account password — the description API rejects
+      # PATs); skips cleanly if unset. Only on main, and never fails the publish.
       - name: Update Docker Hub description
-        if: env.DOCKERHUB_TOKEN != '' && github.ref == 'refs/heads/main'
+        if: env.DOCKERHUB_PASSWORD != '' && github.ref == 'refs/heads/main'
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: ${{ env.DOCKERHUB_IMAGE }}
           short-description: "Containerized mbsync IMAP backup & restore — multi-arch, CVE-scanned"
           readme-filepath: ./DOCKERHUB.md
