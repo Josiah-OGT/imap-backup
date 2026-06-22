@@ -203,10 +203,38 @@ podman run --rm --userns=keep-id --env-file .env \
 ```
 
 Restore flow per account: *(optional)* freshening pull from the source → push
-Maildir to the target. Restore sync-state is kept separately under
-`/backups/.mbsync-restore-state/` so it never disturbs the backup baseline; to
-restore the same mailbox to a *different* fresh server later, clear that
-directory for the account first.
+Maildir to the target. Restore keeps its own sync-state, separate from the
+backup baseline (see [Sync state](#sync-state)); to restore the same mailbox to
+a *different* fresh server later, clear that account's restore-state directory
+first.
+
+## Sync state
+
+Both directions are **incremental**: mbsync persists where it left off so each
+run only transfers what changed. The container itself is stateless — all state
+lives on the `/backups` volume, so it survives restarts, upgrades, and even
+moving the backup tree to another host.
+
+State is keyed to the server's `UIDVALIDITY` plus per-message **UIDs** and
+flags. On each run mbsync reads the recorded UIDs and only acts on newer ones —
+that's why a re-run with nothing new reports `+0`. There are two independent
+state stores so the two directions never interfere:
+
+| Direction | `SyncState` | Location | Why |
+|-----------|-------------|----------|-----|
+| **Backup** (server → Maildir) | `*` | `.mbsyncstate` + `.uidvalidity` *inside each mailbox*, e.g. `/backups/<account>/INBOX/.mbsyncstate` | Co-located with the mail, so `/backups` is self-contained — copy it elsewhere and incremental sync still works. |
+| **Restore** (Maildir → new server) | explicit dir | `/backups/.mbsync-restore-state/<account>/` | Kept *out* of the mailbox so pushing to a new server never disturbs the backup baseline; makes re-running a restore resume-safe (no duplicate pushes). |
+
+Implications:
+
+- **Resuming** a backup or restore after an interruption is safe — mbsync picks
+  up from the last recorded UID.
+- **Re-pointing** an account at a genuinely different mailbox, or a server that
+  resets its `UIDVALIDITY`, is detected as a mismatch and triggers a full
+  re-sync of that mailbox (safe, just slower for one cycle).
+- **Restoring the same mailbox to a second fresh server:** clear that account's
+  folder under `/backups/.mbsync-restore-state/` first, otherwise mbsync thinks
+  those messages are already pushed and skips them.
 
 ## Configuration reference
 
