@@ -25,7 +25,10 @@ services:
       - ./backups:/backups:Z
       - ./logs:/logs:Z
     # By default (rootful Docker) the container runs as root, so backup files on
-    # the host are owned by root. To own them as yourself instead, pre-create the
-    # backups/ and logs/ dirs and run as your UID/GID:
-    #   PUID=$(id -u) PGID=$(id -g) docker compose up -d
+    # the host are owned by root. To own them as yourself instead:
+    #   1. uncomment the `user:` line below, and
+    #   2. set PUID/PGID to your host IDs (`id -u` / `id -g`) — either in .env,
+    #      or inline:  PUID=$(id -u) PGID=$(id -g) docker compose up -d
+    # Pre-create the backups/ and logs/ dirs as that user first. Defaults to
+    # 0:0 (root) if PUID/PGID are unset, matching the no-`user:` behaviour.
     # user: "${PUID:-0}:${PGID:-0}"
