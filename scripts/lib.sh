@@ -15,7 +15,8 @@
 : "${LOG_COMPRESS:=false}"      # gzip rotated logs (needs gzip; off by default)
 : "${LOG_LEVEL:=normal}"        # mbsync verbosity: normal | verbose | debug
 : "${SYNC_INTERVAL:=1h}"        # BusyBox sleep arg: accepts 30, 30m, 1h, 2d ...
-: "${RETAIN_DELETED:=true}"     # true = archival (keep mail deleted on server)
+: "${RETAIN_DELETED:=false}"    # false = exact mirror (propagate server deletions)
+                                # true  = archival (keep mail deleted on the server)
 : "${RESTORE_PRESYNC:=false}"   # true = freshen from source before restoring
 
 CA_FILE=/etc/ssl/certs/ca-certificates.crt

@@ -270,7 +270,7 @@ Implications:
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `SYNC_INTERVAL` | `1h` | Time between cycles (`30`, `30m`, `1h`, `1d`). |
-| `RETAIN_DELETED` | `true` | `true` archival (keep server-deleted mail); `false` exact mirror. |
+| `RETAIN_DELETED` | `false` | `false` exact mirror (propagate server deletions); `true` archival (keep server-deleted mail). |
 | `RESTORE_PRESYNC` | `false` | Pull latest from source before a restore. |
 | `LOG_DIR` | `/logs` | Logfile directory (mount it). |
 | `LOG_MAX_SIZE` | `10M` | Rotate after this size. |
