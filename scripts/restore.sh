@@ -31,7 +31,7 @@ if [ "$RESTORE_PRESYNC" = "true" ]; then
     gen_backup_config $indices > "$PRESYNC_RC"
     for idx in $indices; do
         log "presync account ${idx}"
-        run_logged mbsync -c "$PRESYNC_RC" "acct${idx}" \
+        run_logged mbsync $(mbsync_verbosity) -c "$PRESYNC_RC" "acct${idx}" \
             || log "WARNING: presync failed for account ${idx} (continuing with existing backup)"
     done
 else
@@ -49,7 +49,7 @@ fi
 rc=0
 for idx in $indices; do
     log "restore account ${idx}"
-    if run_logged mbsync -c "$RESTORE_RC" "acct${idx}-restore"; then
+    if run_logged mbsync $(mbsync_verbosity) -c "$RESTORE_RC" "acct${idx}-restore"; then
         log "restore complete for account ${idx}"
     else
         log "ERROR: restore failed for account ${idx}"

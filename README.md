@@ -248,6 +248,7 @@ Implications:
 | `LOG_KEEP` | `7` | Rotated logs retained. |
 | `LOG_TIMESTAMPS` | `true` | ISO timestamps on log lines. |
 | `LOG_COMPRESS` | `false` | gzip rotated logs. |
+| `LOG_LEVEL` | `normal` | mbsync verbosity: `normal` (summary only), `verbose` (per-mailbox/message progress, `-V`), `debug` (+ mbsync debug output, `-V -D`). |
 | `BACKUP_DIR` | `/backups` | Maildir root (mount it). |
 | `ACCOUNT_N_HOST` / `_USER` / `_PASS` | — | Required per account. |
 | `ACCOUNT_N_PORT` / `_TLS` / `_NAME` / `_PASSCMD` | `993` / `IMAPS` / address / — | Optional. |

@@ -44,7 +44,7 @@ run_backup_cycle() {
         return 1
     fi
     log "=== sync cycle start ==="
-    if run_logged mbsync -c "$MBSYNCRC" -a; then
+    if run_logged mbsync $(mbsync_verbosity) -c "$MBSYNCRC" -a; then
         log "=== sync cycle complete ==="
     else
         log "=== sync cycle finished WITH ERRORS (mbsync exit $?) ==="
@@ -55,10 +55,13 @@ run_backup_cycle() {
 cmd="${1:-backup}"
 [ $# -gt 0 ] && shift
 
+# Greet on every launch (backup, sync-once, or restore).
+case "$cmd" in backup|sync-once|restore) banner ;; esac
+
 case "$cmd" in
     backup)
         generate_logrotate_conf
-        log "imap-backup starting (interval=${SYNC_INTERVAL}, accounts=[$(account_indices | tr '\n' ' ')])"
+        log "imap-backup starting (interval=${SYNC_INTERVAL}, log_level=${LOG_LEVEL}, accounts=[$(account_indices | tr '\n' ' ')])"
 
         TERM_FLAG=0
         trap 'TERM_FLAG=1; log "shutdown signal received; stopping after current cycle"' TERM INT

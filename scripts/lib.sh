@@ -13,6 +13,7 @@
 : "${LOG_KEEP:=7}"              # how many rotated logs to retain
 : "${LOG_TIMESTAMPS:=true}"     # prefix log lines with an ISO timestamp
 : "${LOG_COMPRESS:=false}"      # gzip rotated logs (needs gzip; off by default)
+: "${LOG_LEVEL:=normal}"        # mbsync verbosity: normal | verbose | debug
 : "${SYNC_INTERVAL:=1h}"        # BusyBox sleep arg: accepts 30, 30m, 1h, 2d ...
 : "${RETAIN_DELETED:=true}"     # true = archival (keep mail deleted on server)
 : "${RESTORE_PRESYNC:=false}"   # true = freshen from source before restoring
@@ -23,6 +24,22 @@ CA_FILE=/etc/ssl/certs/ca-certificates.crt
 RESTORE_STATE_DIR="${BACKUP_DIR}/.mbsync-restore-state"
 
 # ---- Logging ------------------------------------------------------------------
+# ASCII banner shown once at container launch (and tee'd to the logfile, so the
+# start of each run is easy to spot). Single-quoted heredoc => printed verbatim.
+banner() {
+    mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+    cat <<'BANNER' | tee -a "$LOG_FILE"
+
+  _                          _                _
+ (_)_ __ ___   __ _ _ __    | |__   __ _  ___| | ___   _ _ __
+ | | '_ ` _ \ / _` | '_ \   | '_ \ / _` |/ __| |/ / | | | '_ \
+ | | | | | | | (_| | |_) |  | |_) | (_| | (__|   <| |_| | |_) |
+ |_|_| |_| |_|\__,_| .__/   |_.__/ \__,_|\___|_|\_\\__,_| .__/
+                   |_|        mbsync IMAP backup        |_|
+
+BANNER
+}
+
 # Everything goes to stdout (for `podman logs`) AND is tee'd to the logfile.
 log() {
     _msg="$*"
@@ -31,6 +48,20 @@ log() {
     fi
     mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
     printf '%s\n' "$_msg" | tee -a "$LOG_FILE"
+}
+
+# mbsync verbosity flags for the current LOG_LEVEL. Echoed unquoted at the call
+# site so they word-split into separate args:
+#   normal  -> (nothing)  just the summary counters
+#   verbose -> -V         per-mailbox / per-message progress
+#   debug   -> -V -D      everything above plus mbsync debug output
+mbsync_verbosity() {
+    case "$LOG_LEVEL" in
+        verbose) printf '%s' '-V' ;;
+        debug)   printf '%s' '-V -D' ;;
+        normal)  : ;;
+        *) log "WARNING: unknown LOG_LEVEL '${LOG_LEVEL}', using normal" >&2 ;;
+    esac
 }
 
 # Run a command with combined stdout+stderr tee'd to the logfile, returning the
