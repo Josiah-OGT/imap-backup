@@ -4,6 +4,16 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # Skip rebuilds for changes that never end up in the image. Only Containerfile
+    # and scripts/ are built in, so doc/config-only commits don't republish.
+    # NOTE: this filter also applies to tag pushes — always cut release tags on a
+    # commit that includes the code change (the normal case), or trigger manually.
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".env.example"
+      - "docker-compose.yml"
+      - "quadlet/**"
   workflow_dispatch:
   schedule:
     # Weekly rebuild (Mon 04:17 UTC) to pull the latest isync + Alpine patches.
