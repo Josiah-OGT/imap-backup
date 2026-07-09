@@ -33,3 +33,11 @@ VOLUME ["/backups", "/logs"]
 WORKDIR /app
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 CMD ["backup"]
+
+# Healthy while backup cycles keep completing; unhealthy when the loop stalls
+# or keeps failing (see scripts/healthcheck.sh). One-off sync-once/restore
+# containers always report healthy. NOTE: `podman build` defaults to OCI
+# format, which drops HEALTHCHECK — build with `--format docker` to keep it
+# (docker-compose.yml and the Quadlet unit define the check either way).
+HEALTHCHECK --interval=1m --timeout=10s --start-period=30s --retries=3 \
+    CMD /app/scripts/healthcheck.sh

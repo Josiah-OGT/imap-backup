@@ -18,8 +18,13 @@
 : "${RETAIN_DELETED:=false}"    # false = exact mirror (propagate server deletions)
                                 # true  = archival (keep mail deleted on the server)
 : "${RESTORE_PRESYNC:=false}"   # true = freshen from source before restoring
+: "${HEALTH_GRACE:=5m}"         # slack beyond SYNC_INTERVAL before the loop counts as stale
+: "${HEALTH_MAX_FAILURES:=3}"   # consecutive failed cycles before reporting unhealthy
 
 CA_FILE=/etc/ssl/certs/ca-certificates.crt
+# State handoff from the backup loop to healthcheck.sh. /tmp is per-container,
+# so one-off sync-once/restore containers never see the service's state file.
+HEALTH_FILE=/tmp/imap-backup.health
 # Restore sync-state lives OUTSIDE the per-folder .mbsyncstate used by backups,
 # so a restore never disturbs the backup baseline. Persisted for retry safety.
 RESTORE_STATE_DIR="${BACKUP_DIR}/.mbsync-restore-state"
@@ -70,6 +75,30 @@ mbsync_verbosity() {
 run_logged() {
     mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
     ( set -o pipefail 2>/dev/null; "$@" 2>&1 | tee -a "$LOG_FILE" )
+}
+
+# ---- Health -------------------------------------------------------------------
+# Parse a BusyBox-sleep-style duration (30, 45s, 30m, 1h, 2d) into seconds.
+# $1 = value, $2 = fallback seconds when the value doesn't parse.
+duration_seconds() {
+    _n="${1%[smhd]}"
+    _u="${1#"$_n"}"
+    case "$_n" in
+        ''|*[!0-9]*) echo "$2"; return ;;
+    esac
+    case "$_u" in
+        m) echo $((_n * 60)) ;;
+        h) echo $((_n * 3600)) ;;
+        d) echo $((_n * 86400)) ;;
+        *) echo "$_n" ;;
+    esac
+}
+
+# Record backup-loop state for healthcheck.sh: "STATE EPOCH FAILS".
+# Written via tmp+mv so the healthcheck never reads a half-written line.
+health_write() {
+    printf '%s %s %s\n' "$1" "$(date +%s)" "${2:-0}" > "${HEALTH_FILE}.tmp" \
+        && mv -f "${HEALTH_FILE}.tmp" "$HEALTH_FILE"
 }
 
 # ---- Small utilities ----------------------------------------------------------

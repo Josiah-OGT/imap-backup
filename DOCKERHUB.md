@@ -117,6 +117,22 @@ docker compose run --rm imap-backup restore        # all accounts
 docker compose run --rm imap-backup restore 1      # specific account(s)
 ```
 
+## Health check
+
+The service container reports `healthy` while backup cycles keep completing,
+and `unhealthy` when the loop stalls (no cycle activity for `SYNC_INTERVAL` +
+`HEALTH_GRACE`) or `HEALTH_MAX_FAILURES` consecutive cycles fail. A cycle still
+in progress counts as healthy, and one-off `sync-once` / `restore` runs always
+report healthy.
+
+```sh
+docker ps                          # STATUS shows (healthy) / (unhealthy)
+docker inspect --format '{{.State.Health.Status}}' imap-backup
+```
+
+The failure reason (stale loop vs. failed cycles) is recorded in the
+`docker inspect` health log.
+
 ## Configuration reference
 
 | Variable | Default | Meaning |
@@ -124,6 +140,8 @@ docker compose run --rm imap-backup restore 1      # specific account(s)
 | `SYNC_INTERVAL` | `1h` | Time between cycles (`30`, `30m`, `1h`, `1d`). |
 | `RETAIN_DELETED` | `false` | `false` exact mirror (propagate server deletions); `true` archival (keep server-deleted mail). |
 | `RESTORE_PRESYNC` | `false` | Pull latest from source before a restore. |
+| `HEALTH_GRACE` | `5m` | Slack beyond `SYNC_INTERVAL` before the loop counts as stale (unhealthy). |
+| `HEALTH_MAX_FAILURES` | `3` | Consecutive failed cycles before reporting unhealthy. |
 | `LOG_LEVEL` | `normal` | mbsync verbosity: `normal` (summary), `verbose` (`-V`), `debug` (`-V -D`). |
 | `LOG_DIR` | `/logs` | Logfile directory (mount it). |
 | `LOG_MAX_SIZE` | `10M` | Rotate after this size. |

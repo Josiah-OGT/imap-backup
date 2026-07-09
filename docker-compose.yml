@@ -24,6 +24,15 @@ services:
       # drop the suffix on non-SELinux hosts (Ubuntu, Docker Desktop).
       - ./backups:/backups:Z
       - ./logs:/logs:Z
+    # Same check the published image bakes in; declared here too so it also
+    # works with locally built OCI-format images (podman build without
+    # `--format docker` drops the HEALTHCHECK instruction).
+    healthcheck:
+      test: ["CMD", "/app/scripts/healthcheck.sh"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     # By default (rootful Docker) the container runs as root, so backup files on
     # the host are owned by root. To own them as yourself instead:
     #   1. uncomment the `user:` line below, and

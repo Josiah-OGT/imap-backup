@@ -91,8 +91,13 @@ ACCOUNT_1_PASS=app-password-here
 ## 2. Build
 
 ```sh
-podman build -t imap-backup .
+podman build --format docker -t imap-backup .
 ```
+
+> `--format docker` keeps the image's built-in [health check](#health-check) —
+> Podman's default OCI format has no `HEALTHCHECK` field and silently drops the
+> instruction. The flag is optional: the Compose file and Quadlet unit declare
+> the same check at the runtime level.
 
 ## 3. Run (long-running backup)
 
@@ -237,6 +242,34 @@ backup baseline (see [Sync state](#sync-state)); to restore the same mailbox to
 a *different* fresh server later, clear that account's restore-state directory
 first.
 
+## Health check
+
+The long-running container reports `healthy` while sync cycles keep completing,
+and turns `unhealthy` when:
+
+- the loop goes **stale** — no cycle activity for `SYNC_INTERVAL` +
+  `HEALTH_GRACE` (hung mbsync, stuck sleep), or
+- `HEALTH_MAX_FAILURES` **consecutive cycles fail** (bad credentials,
+  unreachable server, no accounts configured).
+
+A cycle that is still running counts as healthy — the first backup of a large
+mailbox can legitimately take hours. One-off `sync-once` / `restore` containers
+always report healthy.
+
+```sh
+podman ps                                                    # STATUS shows (healthy)
+podman healthcheck run imap-backup && echo healthy           # trigger a check by hand
+podman inspect --format '{{.State.Health.Status}}' imap-backup
+```
+
+With Docker, the same via `docker ps` / `docker inspect`; the failure reason is
+recorded in `inspect` output. The check is baked into the published images and
+declared in `docker-compose.yml` and the Quadlet unit, so it works with Docker,
+Compose, and Podman/Quadlet alike. Podman users can additionally uncomment
+`HealthOnFailure=restart` in the Quadlet unit to auto-restart on unhealthy —
+something plain Docker cannot do. Note that plain `docker run` / `podman run`
+only *report* health; acting on it is up to you (or systemd/Quadlet).
+
 ## Sync state
 
 Both directions are **incremental**: mbsync persists where it left off so each
@@ -272,6 +305,8 @@ Implications:
 | `SYNC_INTERVAL` | `1h` | Time between cycles (`30`, `30m`, `1h`, `1d`). |
 | `RETAIN_DELETED` | `false` | `false` exact mirror (propagate server deletions); `true` archival (keep server-deleted mail). |
 | `RESTORE_PRESYNC` | `false` | Pull latest from source before a restore. |
+| `HEALTH_GRACE` | `5m` | Slack beyond `SYNC_INTERVAL` before the loop counts as stale (unhealthy). |
+| `HEALTH_MAX_FAILURES` | `3` | Consecutive failed cycles before reporting unhealthy. |
 | `LOG_DIR` | `/logs` | Logfile directory (mount it). |
 | `LOG_MAX_SIZE` | `10M` | Rotate after this size. |
 | `LOG_KEEP` | `7` | Rotated logs retained. |

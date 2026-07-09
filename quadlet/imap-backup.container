@@ -18,7 +18,8 @@ Wants=network-online.target
 [Container]
 ContainerName=imap-backup
 Image=localhost/imap-backup:latest
-# Built locally; Quadlet won't pull it. Build first: podman build -t imap-backup .
+# Built locally; Quadlet won't pull it. Build first:
+#   podman build --format docker -t imap-backup .
 Pull=never
 
 # Edit these three paths to taste (%h = your home directory).
@@ -28,6 +29,18 @@ Volume=%h/imap-backup/logs:/logs:Z
 
 # Rootless: map your host UID into the container so backup files are owned by you.
 UserNS=keep-id
+
+# Health: unhealthy when the backup loop stalls or keeps failing (see
+# scripts/healthcheck.sh). Declared here — not only in the image — because a
+# local `podman build` without `--format docker` drops the baked-in check.
+HealthCmd=/app/scripts/healthcheck.sh
+HealthInterval=1m
+HealthTimeout=10s
+HealthRetries=3
+HealthStartPeriod=30s
+# Podman can act on unhealthy itself (plain Docker can't). Off by default: a
+# restart won't fix bad credentials, only hangs. Uncomment for self-healing.
+# HealthOnFailure=restart
 
 [Service]
 # It's a persistent loop; keep it alive across crashes/reboots.

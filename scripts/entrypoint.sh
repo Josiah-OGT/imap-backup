@@ -44,12 +44,15 @@ run_backup_cycle() {
         return 1
     fi
     log "=== sync cycle start ==="
+    _cycle_rc=0
     if run_logged mbsync $(mbsync_verbosity) -c "$MBSYNCRC" -a; then
         log "=== sync cycle complete ==="
     else
-        log "=== sync cycle finished WITH ERRORS (mbsync exit $?) ==="
+        _cycle_rc=$?
+        log "=== sync cycle finished WITH ERRORS (mbsync exit ${_cycle_rc}) ==="
     fi
     rotate_logs
+    return "$_cycle_rc"
 }
 
 cmd="${1:-backup}"
@@ -66,8 +69,17 @@ case "$cmd" in
         TERM_FLAG=0
         trap 'TERM_FLAG=1; log "shutdown signal received; stopping after current cycle"' TERM INT
 
+        # Track consecutive cycle failures and hand loop state to healthcheck.sh.
+        FAIL_COUNT=0
         while [ "$TERM_FLAG" -eq 0 ]; do
-            run_backup_cycle || true
+            health_write running "$FAIL_COUNT"
+            if run_backup_cycle; then
+                FAIL_COUNT=0
+                health_write ok
+            else
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+                health_write error "$FAIL_COUNT"
+            fi
             [ "$TERM_FLAG" -eq 0 ] || break
 
             log "sleeping ${SYNC_INTERVAL} until next cycle"
