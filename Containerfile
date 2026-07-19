@@ -2,7 +2,7 @@
 # Alpine keeps this in the ~12 MB range while still installing isync from a package
 # (no compiling needed). 3.22 ships isync 1.5.1 == upstream latest, which supports
 # the modern TLSType / Near / Far config keywords.
-FROM alpine:3.22
+FROM alpine:3.24
 
 # isync       -> the `mbsync` binary
 # ca-certificates -> CA bundle for IMAPS/STARTTLS validation
